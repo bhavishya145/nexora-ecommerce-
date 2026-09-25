@@ -1,0 +1,6 @@
+{
+  "name": "NEXORA",
+  "description": "The Future of Shopping. An ultra-futuristic, immersive 2030 digital marketplace with bento discovery, drops, and cyber command centers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

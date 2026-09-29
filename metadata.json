@@ -1,0 +1,6 @@
+{
+  "name": "NEXORA - Modern Intelligent Shopping Platform",
+  "description": "Discover More. Shop Smarter. Futuristic premium e-commerce platform featuring smart recommendations, product match scoring, flash sales, loyalty rewards, and complete order management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

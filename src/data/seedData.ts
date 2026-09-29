@@ -43,8 +43,8 @@ export const SEED_BRANDS = [
   { id: 'b-10', name: 'OmniHaptic Labs', logo: 'OMNI', description: 'Tactile sensory feedback & low-latency esport gear' },
 ];
 
-// 52 rich realistic products across 10 categories
-export const SEED_PRODUCTS: Product[] = [
+// 55 rich realistic products across 10 categories
+const RAW_SEED_PRODUCTS: any[] = [
   {
     id: 'prod-01',
     name: 'Aetherion Spatial Pro X9 Wireless Headphones',
@@ -1489,8 +1489,151 @@ export const SEED_PRODUCTS: Product[] = [
     shippingInfo: { estimatedDays: 1, freeShipping: true, shippingCost: 0 },
     seller: { name: 'ZeroVolt Energy Store', rating: 4.91, badge: 'Official Manufacturer' },
     createdAt: '2026-02-11T16:00:00Z'
+  },
+  {
+    id: 'prod-51',
+    name: 'OmniHaptic PulseKey 75% Magnetic Hall-Effect Keyboard',
+    slug: 'omnihaptic-pulsekey-75-keyboard',
+    tagline: 'Rapid-trigger magnetic analog switches with 0.1mm reset point and CNC brass acoustic weight',
+    description: 'Custom engineered for esport athletes and competitive gamers requiring sub-millisecond response. Features dual-gasket dampening, per-key RGB backlighting, and hot-swappable magnetic hall switches.',
+    category: 'Gaming Rig & Peripherals',
+    categorySlug: 'gaming-peripherals',
+    brand: 'OmniHaptic Labs',
+    price: 199.00,
+    originalPrice: 239.00,
+    discountPercentage: 17,
+    stock: 22,
+    sku: 'OMNI-KB-75',
+    rating: 4.9,
+    reviewCount: 78,
+    images: ['https://images.unsplash.com/photo-1595225476474-87563907a212?w=800&auto=format&fit=crop&q=80'],
+    tags: ['keyboard', 'hall-effect', 'gaming', 'mechanical', 'esports'],
+    specifications: [{ group: 'Switches', items: [{ label: 'Switch Tech', value: 'Hall Effect Magnetic' }, { label: 'Actuation Point', value: 'Adjustable 0.1mm - 4.0mm' }] }],
+    sustainability: { ecoScore: 'A', materials: 'Solid anodized aluminum case with PBT double-shot keycaps', recyclablePackaging: true, carbonNeutralShipping: true },
+    shippingInfo: { estimatedDays: 2, freeShipping: true, shippingCost: 0 },
+    seller: { name: 'OmniHaptic Direct', rating: 4.97, badge: 'Official Manufacturer' },
+    createdAt: '2026-02-15T09:00:00Z'
+  },
+  {
+    id: 'prod-52',
+    name: 'Vortex SkyGuard Autonomous Ground Station Base',
+    slug: 'vortex-skyguard-ground-station',
+    tagline: 'Dual antenna 20km transmission hub with weatherproof landing pad and drone auto-recharge',
+    description: 'Enables true pilotless drone missions. When the drone lands, the base mechanically aligns charging contacts to rapid-charge the aircraft battery while downloading 8K telemetry over 10Gbps optical fiber.',
+    category: 'Autonomous Drones & Bots',
+    categorySlug: 'drones-robotics',
+    brand: 'Vortex Dynamics',
+    price: 1499.00,
+    originalPrice: 1799.00,
+    discountPercentage: 17,
+    stock: 7,
+    sku: 'VTX-PAD-01',
+    rating: 4.9,
+    reviewCount: 23,
+    images: ['https://images.unsplash.com/photo-1527977966376-1c8408f9f108?w=800&auto=format&fit=crop&q=80'],
+    tags: ['drone hub', 'autonomous', 'charging base', 'robotics'],
+    specifications: [{ group: 'Base', items: [{ label: 'Charge Speed', value: '250W GaN Rapid Dock' }, { label: 'Weather Rating', value: 'IP66 Stormproof' }] }],
+    sustainability: { ecoScore: 'A', materials: 'Weatherized recycled carbon composite', recyclablePackaging: true, carbonNeutralShipping: true },
+    shippingInfo: { estimatedDays: 3, freeShipping: true, shippingCost: 0 },
+    seller: { name: 'Vortex Aero Logistics', rating: 4.92, badge: 'Official Manufacturer' },
+    createdAt: '2026-01-20T11:00:00Z'
+  },
+  {
+    id: 'prod-53',
+    name: 'Aetherion Resonance Spatial Audio Soundbar Mini',
+    slug: 'aetherion-resonance-soundbar-mini',
+    tagline: 'Desktop acoustic beamforming array with upward height drivers and dedicated sub-bass transducer',
+    description: 'Sits cleanly under any computer monitor to project a binaural acoustic bubble without requiring headphones. Features optical, eARC, and lossless Bluetooth 5.4 streaming.',
+    category: 'Neural & Audio',
+    categorySlug: 'neural-audio',
+    brand: 'Aetherion Labs',
+    price: 249.00,
+    originalPrice: 299.00,
+    discountPercentage: 17,
+    stock: 30,
+    sku: 'AETH-SND-MINI',
+    rating: 4.8,
+    reviewCount: 62,
+    images: ['https://images.unsplash.com/photo-1545454675-3531b543be5d?w=800&auto=format&fit=crop&q=80'],
+    tags: ['soundbar', 'audio', 'desktop', 'spatial sound'],
+    specifications: [{ group: 'Acoustics', items: [{ label: 'Drivers', value: '6 Custom Planar Transducers' }, { label: 'Peak Power', value: '160W' }] }],
+    sustainability: { ecoScore: 'Verified', materials: 'Recycled aluminum chassis', recyclablePackaging: true, carbonNeutralShipping: true },
+    shippingInfo: { estimatedDays: 2, freeShipping: true, shippingCost: 0 },
+    seller: { name: 'Aetherion Direct Flagship', rating: 4.95, badge: 'Official Manufacturer' },
+    createdAt: '2026-02-01T14:00:00Z'
+  },
+  {
+    id: 'prod-54',
+    name: 'Novawear Terra Continuous Glucose & Lactate Patch',
+    slug: 'novawear-terra-metabolic-patch',
+    tagline: 'Pain-free 14-day micro-filament sensor streaming real-time metabolic fuel burn to smart rings',
+    description: 'Eliminates finger-pricking. Applies painlessly with an applicator to track blood glucose spikes, metabolic flexibility, and lactate accumulation during workouts.',
+    category: 'Smart Wearables',
+    categorySlug: 'smart-wearables',
+    brand: 'Novawear',
+    price: 129.00,
+    originalPrice: 159.00,
+    discountPercentage: 19,
+    stock: 45,
+    sku: 'NOVA-GLU-14',
+    rating: 4.9,
+    reviewCount: 114,
+    images: ['https://images.unsplash.com/photo-1576243345690-4e4b79b63288?w=800&auto=format&fit=crop&q=80'],
+    tags: ['cgm', 'glucose monitor', 'metabolism', 'wearable', 'health'],
+    specifications: [{ group: 'Sensor', items: [{ label: 'Wear Duration', value: '14 Days Continuous' }, { label: 'Waterproof', value: 'IPX8 Submersible' }] }],
+    sustainability: { ecoScore: 'Verified', materials: 'Medical grade bio-compatible adhesive', recyclablePackaging: true, carbonNeutralShipping: true },
+    shippingInfo: { estimatedDays: 1, freeShipping: true, shippingCost: 0 },
+    seller: { name: 'Novawear Health Tech', rating: 4.88, badge: 'Verified Partner' },
+    createdAt: '2026-02-14T10:00:00Z'
+  },
+  {
+    id: 'prod-55',
+    name: 'Luminary Stellar Smart Nebula Ceiling Projector',
+    slug: 'luminary-stellar-nebula-projector',
+    tagline: 'High-precision glass laser diode mapping 10,000 true stars with gentle moving cosmic dust clouds',
+    description: 'Transforms your bedroom into an observatory. Features silent magnetic rotation, sleep timer, smart assistant voice control, and scientifically accurate northern constellation maps.',
+    category: 'Ambient & Smart Home',
+    categorySlug: 'smart-home',
+    brand: 'Luminary Ambient',
+    price: 119.00,
+    originalPrice: 149.00,
+    discountPercentage: 20,
+    stock: 35,
+    sku: 'LMN-STR-01',
+    rating: 4.8,
+    reviewCount: 138,
+    images: ['https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop&q=80'],
+    tags: ['star projector', 'ambient lighting', 'smart home', 'night sky'],
+    specifications: [{ group: 'Optics', items: [{ label: 'Laser Class', value: 'Class 1 Eye-Safe' }, { label: 'Coverage', value: 'Up to 900 sq ft' }] }],
+    sustainability: { ecoScore: 'A', materials: 'Eco-certified recycled polymer body', recyclablePackaging: true, carbonNeutralShipping: true },
+    shippingInfo: { estimatedDays: 1, freeShipping: true, shippingCost: 0 },
+    seller: { name: 'Luminary Living Store', rating: 4.81, badge: 'Verified Partner' },
+    createdAt: '2026-02-05T12:00:00Z'
   }
 ];
+
+// Normalize and guarantee all products have department, discount, bestseller, flashSale, etc.
+export const SEED_PRODUCTS: Product[] = RAW_SEED_PRODUCTS.map((p, idx) => {
+  const discountVal = typeof p.discount === 'number' ? p.discount : (typeof p.discountPercentage === 'number' ? p.discountPercentage : 0);
+  const isBestseller = Boolean(p.bestseller || p.bestSeller || (p.reviewCount && p.reviewCount >= 100));
+  const isFeatured = Boolean(p.featured || idx < 12);
+  const isFlashSale = Boolean(p.flashSale || discountVal >= 20);
+
+  return {
+    ...p,
+    department: p.department || p.category,
+    category: p.category,
+    discount: discountVal,
+    discountPercentage: discountVal,
+    featured: isFeatured,
+    bestseller: isBestseller,
+    bestSeller: isBestseller,
+    flashSale: isFlashSale,
+    flashSaleDetails: typeof p.flashSale === 'object' && p.flashSale ? p.flashSale : undefined,
+    trending: Boolean(p.trending || idx % 3 === 0),
+    newArrival: Boolean(p.newArrival || idx % 4 === 0)
+  };
+});
 
 export const SEED_COUPONS: Coupon[] = [
   {

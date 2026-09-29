@@ -17,7 +17,7 @@ import { Product } from '../types';
 import { ProductCard } from '../components/ProductCard';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { SEED_CATEGORIES, SEED_BRANDS } from '../data/seedData';
+import { SEED_CATEGORIES, SEED_BRANDS, SEED_PRODUCTS } from '../data/seedData';
 
 interface HomePageProps {
   onNavigate: (view: string, param?: string) => void;
@@ -35,11 +35,21 @@ export const HomePage: React.FC<HomePageProps> = ({
   const { user, claimDailyStreak } = useAuth();
   const { showToast } = useToast();
 
-  const [flashDeals, setFlashDeals] = useState<Product[]>([]);
-  const [dealRadar, setDealRadar] = useState<Product[]>([]);
-  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
-  const [trendingProducts, setTrendingProducts] = useState<Product[]>([]);
-  const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
+  const [flashDeals, setFlashDeals] = useState<Product[]>(() =>
+    SEED_PRODUCTS.filter(p => p.flashSale || p.discount >= 20).slice(0, 4)
+  );
+  const [dealRadar, setDealRadar] = useState<Product[]>(() =>
+    SEED_PRODUCTS.filter(p => p.discount >= 15).slice(0, 4)
+  );
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>(() =>
+    SEED_PRODUCTS.filter(p => p.featured).slice(0, 8)
+  );
+  const [trendingProducts, setTrendingProducts] = useState<Product[]>(() =>
+    SEED_PRODUCTS.filter(p => p.bestseller || p.trending).slice(0, 8)
+  );
+  const [recommendedProducts, setRecommendedProducts] = useState<Product[]>(() =>
+    SEED_PRODUCTS.slice(8, 16)
+  );
   const [activeTab, setActiveTab] = useState<'featured' | 'trending' | 'recommended'>('featured');
 
   // Flash Sale Live Countdown Timer
@@ -57,31 +67,41 @@ export const HomePage: React.FC<HomePageProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch product sections
+  // Fetch product sections from API
   useEffect(() => {
     fetch('/api/products/flash-deals')
       .then(res => res.json())
-      .then(data => setFlashDeals(data))
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) setFlashDeals(data);
+      })
       .catch(() => {});
 
     fetch('/api/products/deal-radar')
       .then(res => res.json())
-      .then(data => setDealRadar(data.slice(0, 4)))
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) setDealRadar(data.slice(0, 4));
+      })
       .catch(() => {});
 
     fetch('/api/products/featured')
       .then(res => res.json())
-      .then(data => setFeaturedProducts(data))
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) setFeaturedProducts(data);
+      })
       .catch(() => {});
 
     fetch('/api/products/trending')
       .then(res => res.json())
-      .then(data => setTrendingProducts(data))
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) setTrendingProducts(data);
+      })
       .catch(() => {});
 
     fetch('/api/products/recommendations')
       .then(res => res.json())
-      .then(data => setRecommendedProducts(data))
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) setRecommendedProducts(data);
+      })
       .catch(() => {});
   }, []);
 

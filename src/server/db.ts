@@ -14,7 +14,7 @@ import {
   Address,
   PriceAlertSubscription,
   BackInStockSubscription
-} from '../types';
+} from '../types/index.ts';
 import {
   SEED_CATEGORIES,
   SEED_BRANDS,
@@ -22,7 +22,7 @@ import {
   SEED_COUPONS,
   SEED_USERS,
   SeedUser
-} from '../data/seedData';
+} from '../data/seedData.ts';
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'nexora-db.json');
@@ -62,7 +62,27 @@ export class NexoraDatabase {
       if (fs.existsSync(DB_FILE)) {
         const raw = fs.readFileSync(DB_FILE, 'utf-8');
         const parsed = JSON.parse(raw);
-        if (parsed.products && parsed.users && parsed.orders) {
+        if (parsed.products && Array.isArray(parsed.products) && parsed.products.length >= 50 && parsed.users && parsed.orders) {
+          parsed.products = parsed.products.map((p: any, idx: number) => {
+            const discountVal = typeof p.discount === 'number' ? p.discount : (typeof p.discountPercentage === 'number' ? p.discountPercentage : 0);
+            const isBestseller = Boolean(p.bestseller || p.bestSeller || (p.reviewCount && p.reviewCount >= 100));
+            const isFeatured = Boolean(p.featured || idx < 12);
+            const isFlashSale = Boolean(p.flashSale || discountVal >= 20);
+            return {
+              ...p,
+              department: p.department || p.category,
+              category: p.category,
+              discount: discountVal,
+              discountPercentage: discountVal,
+              featured: isFeatured,
+              bestseller: isBestseller,
+              bestSeller: isBestseller,
+              flashSale: isFlashSale,
+              flashSaleDetails: typeof p.flashSale === 'object' && p.flashSale ? p.flashSale : undefined,
+              trending: Boolean(p.trending || idx % 3 === 0),
+              newArrival: Boolean(p.newArrival || idx % 4 === 0)
+            };
+          });
           return parsed;
         }
       }

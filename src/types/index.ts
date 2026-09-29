@@ -55,10 +55,12 @@ export interface Product {
   tagline: string;
   description: string;
   category: string;
+  department: string;
   categorySlug: string;
   brand: string;
   price: number;
   originalPrice: number;
+  discount: number;
   discountPercentage: number;
   stock: number;
   sku: string;
@@ -68,16 +70,18 @@ export interface Product {
   tags: string[];
   variants?: ProductVariant[];
   specifications: ProductSpecification[];
-  featured?: boolean;
-  trending?: boolean;
+  featured: boolean;
+  bestseller: boolean;
   bestSeller?: boolean;
-  newArrival?: boolean;
-  flashSale?: {
+  flashSale: boolean;
+  flashSaleDetails?: {
     discountPercentage: number;
     endsAt: string;
     limitedStock: number;
     soldStock: number;
   };
+  trending?: boolean;
+  newArrival?: boolean;
   sustainability: {
     ecoScore: 'A+' | 'A' | 'B' | 'Verified';
     materials: string;

@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { db } from './db';
 import { GoogleGenAI } from '@google/genai';
-import { Product } from '../types';
+import { Product } from '../types/index.ts';
 
 export const apiRouter = Router();
 
@@ -152,11 +152,12 @@ apiRouter.post('/auth/claim-streak', authenticate, (req: Request, res: Response)
 
 // ================= PRODUCTS ROUTES =================
 apiRouter.get('/products', (req: Request, res: Response) => {
-  let products = db.getProducts();
+  let products = [...db.getProducts()];
 
   const {
     q,
     category,
+    department,
     brand,
     minPrice,
     maxPrice,
@@ -170,22 +171,44 @@ apiRouter.get('/products', (req: Request, res: Response) => {
   } = req.query as Record<string, string>;
 
   // Search filter
-  if (q) {
+  if (q && q.trim()) {
     const searchTerms = q.toLowerCase().trim().split(/\s+/);
     products = products.filter(p => {
-      const matchString = `${p.name} ${p.description} ${p.brand} ${p.category} ${p.tags.join(' ')} ${p.sku}`.toLowerCase();
+      const matchString = `${p.name} ${p.description} ${p.brand} ${p.category} ${p.department || ''} ${(p.tags || []).join(' ')} ${p.sku || ''}`.toLowerCase();
       return searchTerms.every(term => matchString.includes(term));
     });
   }
 
-  // Category filter
-  if (category && category !== 'all') {
-    products = products.filter(p => p.categorySlug === category || p.category.toLowerCase() === category.toLowerCase());
+  // Category / Department / Division filter
+  const catFilter = (category || department || (req.query as any).division || '').trim();
+  if (catFilter && catFilter.toLowerCase() !== 'all' && catFilter.toLowerCase() !== 'all departments') {
+    const clean = catFilter.toLowerCase();
+    const slugifiedFilter = clean.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    products = products.filter(p => {
+      const pCat = (p.category || '').toLowerCase();
+      const pDept = (p.department || '').toLowerCase();
+      const pSlug = (p.categorySlug || '').toLowerCase();
+      const slugifiedCat = pCat.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+      const slugifiedDept = pDept.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+      return (
+        pCat === clean ||
+        pDept === clean ||
+        pSlug === clean ||
+        slugifiedCat === slugifiedFilter ||
+        slugifiedDept === slugifiedFilter ||
+        pSlug === slugifiedFilter ||
+        pCat.includes(clean) ||
+        clean.includes(pCat) ||
+        pDept.includes(clean) ||
+        clean.includes(pDept)
+      );
+    });
   }
 
   // Brand filter
-  if (brand && brand !== 'all') {
-    products = products.filter(p => p.brand.toLowerCase() === brand.toLowerCase());
+  if (brand && brand.toLowerCase() !== 'all') {
+    const cleanBrand = brand.toLowerCase().trim();
+    products = products.filter(p => p.brand.toLowerCase() === cleanBrand || p.brand.toLowerCase().includes(cleanBrand));
   }
 
   // Price range
@@ -205,42 +228,36 @@ apiRouter.get('/products', (req: Request, res: Response) => {
   }
 
   // In stock
-  if (inStock === 'true') {
+  if (inStock === 'true' || inStock === '1') {
     products = products.filter(p => p.stock > 0);
   }
 
   // Minimum discount
   if (discount) {
     const d = parseFloat(discount);
-    if (!isNaN(d)) products = products.filter(p => p.discountPercentage >= d);
+    if (!isNaN(d)) products = products.filter(p => (p.discount ?? p.discountPercentage) >= d);
   }
 
   // Tag filter
   if (tag) {
-    products = products.filter(p => p.tags.includes(tag.toLowerCase()));
+    products = products.filter(p => (p.tags || []).some(t => t.toLowerCase() === tag.toLowerCase()));
   }
 
-  // Sorting
-  switch (sort) {
-    case 'price-asc':
-      products.sort((a, b) => a.price - b.price);
-      break;
-    case 'price-desc':
-      products.sort((a, b) => b.price - a.price);
-      break;
-    case 'rating':
-      products.sort((a, b) => b.rating - a.rating);
-      break;
-    case 'discount':
-      products.sort((a, b) => b.discountPercentage - a.discountPercentage);
-      break;
-    case 'newest':
-      products.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      break;
-    case 'popular':
-    default:
-      products.sort((a, b) => (b.reviewCount * b.rating) - (a.reviewCount * a.rating));
-      break;
+  // Sorting: Most Popular, Price Low to High, Price High to Low, Highest Rated, Newest, Biggest Discount
+  const sortKey = (sort || '').toLowerCase().trim();
+  if (sortKey === 'price-asc' || sortKey === 'price_asc' || sortKey.includes('low to high') || sortKey === 'price-low-to-high') {
+    products.sort((a, b) => a.price - b.price);
+  } else if (sortKey === 'price-desc' || sortKey === 'price_desc' || sortKey.includes('high to low') || sortKey === 'price-high-to-low') {
+    products.sort((a, b) => b.price - a.price);
+  } else if (sortKey === 'rating' || sortKey.includes('highest rated') || sortKey === 'highest-rated') {
+    products.sort((a, b) => b.rating - a.rating);
+  } else if (sortKey === 'discount' || sortKey.includes('discount') || sortKey === 'biggest-discount') {
+    products.sort((a, b) => (b.discount ?? b.discountPercentage) - (a.discount ?? a.discountPercentage));
+  } else if (sortKey === 'newest' || sortKey.includes('new') || sortKey === 'new-arrivals') {
+    products.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  } else {
+    // Default: Most Popular
+    products.sort((a, b) => (b.reviewCount * b.rating) - (a.reviewCount * a.rating));
   }
 
   const total = products.length;
@@ -255,7 +272,7 @@ apiRouter.get('/products', (req: Request, res: Response) => {
       total,
       page: pageNum,
       limit: limitNum,
-      totalPages: Math.ceil(total / limitNum)
+      totalPages: Math.ceil(total / limitNum) || 1
     }
   });
 });
@@ -790,7 +807,7 @@ ${catalogSummary}
 Format your response with concise markdown. Highlight product names and key specs clearly. Keep responses under 150 words.`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
+        model: 'gemini-2.5-flash',
         contents: [
           { role: 'user', parts: [{ text: `${systemPrompt}\n\nUser Question: ${message}` }] }
         ]

@@ -9,15 +9,123 @@ import {
   Check,
   Grid,
   List as ListIcon,
-  RotateCcw
+  RotateCcw,
+  AlertTriangle
 } from 'lucide-react';
 import { Product } from '../types';
 import { ProductCard } from '../components/ProductCard';
-import { SEED_CATEGORIES, SEED_BRANDS } from '../data/seedData';
+import { SEED_CATEGORIES, SEED_BRANDS, SEED_PRODUCTS } from '../data/seedData';
 
 interface ShopPageProps {
   initialQuery?: string;
   onNavigate: (view: string, param?: string) => void;
+}
+
+// Client-side fallback filter engine to guarantee products are always available
+function filterLocalProducts(params: {
+  search?: string;
+  category?: string;
+  brand?: string;
+  minPrice?: string;
+  maxPrice?: string;
+  minRating?: string;
+  inStockOnly?: boolean;
+  minDiscount?: string;
+  sortBy?: string;
+  page?: number;
+  limit?: number;
+}): { products: Product[]; total: number; totalPages: number } {
+  let list = [...SEED_PRODUCTS];
+
+  if (params.search && params.search.trim()) {
+    const terms = params.search.toLowerCase().trim().split(/\s+/);
+    list = list.filter(p => {
+      const matchText = `${p.name} ${p.description} ${p.brand} ${p.category} ${p.department || ''} ${(p.tags || []).join(' ')} ${p.sku || ''}`.toLowerCase();
+      return terms.every(t => matchText.includes(t));
+    });
+  }
+
+  if (params.category && params.category !== 'all' && params.category.toLowerCase() !== 'all departments') {
+    const clean = params.category.toLowerCase().trim();
+    const slugified = clean.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    list = list.filter(p => {
+      const pCat = (p.category || '').toLowerCase();
+      const pDept = (p.department || '').toLowerCase();
+      const pSlug = (p.categorySlug || '').toLowerCase();
+      const slugCat = pCat.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+      const slugDept = pDept.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+      return (
+        pCat === clean ||
+        pDept === clean ||
+        pSlug === clean ||
+        slugCat === slugified ||
+        slugDept === slugified ||
+        pSlug === slugified ||
+        pCat.includes(clean) ||
+        clean.includes(pCat) ||
+        pDept.includes(clean) ||
+        clean.includes(pDept)
+      );
+    });
+  }
+
+  if (params.brand && params.brand !== 'all') {
+    const cleanBrand = params.brand.toLowerCase().trim();
+    list = list.filter(p => p.brand.toLowerCase() === cleanBrand || p.brand.toLowerCase().includes(cleanBrand));
+  }
+
+  if (params.minPrice) {
+    const min = parseFloat(params.minPrice);
+    if (!isNaN(min)) list = list.filter(p => p.price >= min);
+  }
+
+  if (params.maxPrice) {
+    const max = parseFloat(params.maxPrice);
+    if (!isNaN(max)) list = list.filter(p => p.price <= max);
+  }
+
+  if (params.minRating) {
+    const r = parseFloat(params.minRating);
+    if (!isNaN(r)) list = list.filter(p => p.rating >= r);
+  }
+
+  if (params.inStockOnly) {
+    list = list.filter(p => p.stock > 0);
+  }
+
+  if (params.minDiscount) {
+    const d = parseFloat(params.minDiscount);
+    if (!isNaN(d)) list = list.filter(p => (p.discount ?? p.discountPercentage) >= d);
+  }
+
+  // Sorting: Most Popular, Price Low to High, Price High to Low, Highest Rated, Newest, Biggest Discount
+  const sortKey = (params.sortBy || '').toLowerCase().trim();
+  if (sortKey === 'price-asc' || sortKey === 'price_asc' || sortKey.includes('low to high') || sortKey === 'price-low-to-high') {
+    list.sort((a, b) => a.price - b.price);
+  } else if (sortKey === 'price-desc' || sortKey === 'price_desc' || sortKey.includes('high to low') || sortKey === 'price-high-to-low') {
+    list.sort((a, b) => b.price - a.price);
+  } else if (sortKey === 'rating' || sortKey.includes('highest rated') || sortKey === 'highest-rated') {
+    list.sort((a, b) => b.rating - a.rating);
+  } else if (sortKey === 'discount' || sortKey.includes('discount') || sortKey === 'biggest-discount') {
+    list.sort((a, b) => (b.discount ?? b.discountPercentage) - (a.discount ?? a.discountPercentage));
+  } else if (sortKey === 'newest' || sortKey.includes('new') || sortKey === 'new-arrivals') {
+    list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  } else {
+    // Default: Most Popular
+    list.sort((a, b) => (b.reviewCount * b.rating) - (a.reviewCount * a.rating));
+  }
+
+  const total = list.length;
+  const limit = params.limit || 12;
+  const page = params.page || 1;
+  const start = (page - 1) * limit;
+  const paginated = list.slice(start, start + limit);
+
+  return {
+    products: paginated,
+    total,
+    totalPages: Math.ceil(total / limit) || 1
+  };
 }
 
 export const ShopPage: React.FC<ShopPageProps> = ({ initialQuery = '', onNavigate }) => {
@@ -26,6 +134,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialQuery = '', onNavigat
   const [totalProducts, setTotalProducts] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // Filters State
   const [search, setSearch] = useState<string>('');
@@ -39,11 +148,12 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialQuery = '', onNavigat
   const [sortBy, setSortBy] = useState<string>('popular');
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState<boolean>(false);
 
-  // Parse initial query params if present (e.g. "category=neural-audio" or "q=drone")
+  // Parse initial query params if present (e.g. "category=neural-audio" or "department=Neural & Audio" or "q=drone")
   useEffect(() => {
     if (initialQuery) {
       const params = new URLSearchParams(initialQuery);
       if (params.get('category')) setSelectedCategory(params.get('category')!);
+      if (params.get('department')) setSelectedCategory(params.get('department')!);
       if (params.get('brand')) setSelectedBrand(params.get('brand')!);
       if (params.get('q')) setSearch(params.get('q')!);
       if (params.get('filter') === 'flash') setMinDiscount('20');
@@ -51,11 +161,18 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialQuery = '', onNavigat
         setMinDiscount('15');
         setSortBy('discount');
       }
+    } else {
+      setSelectedCategory('all');
+      setSelectedBrand('all');
+      setSearch('');
+      setMinDiscount('');
     }
   }, [initialQuery]);
 
-  // Fetch filtered products from API
+  // Fetch filtered products from API with local database fallback
   useEffect(() => {
+    let isCancelled = false;
+
     async function loadProducts() {
       setLoading(true);
       const queryParams = new URLSearchParams();
@@ -73,17 +190,50 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialQuery = '', onNavigat
 
       try {
         const res = await fetch(`/api/products?${queryParams.toString()}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        setProducts(data.products || []);
-        setTotalProducts(data.pagination?.total || 0);
-        setTotalPages(data.pagination?.totalPages || 1);
-      } catch (err) {
-        console.error('Failed to fetch catalog:', err);
+        if (data && Array.isArray(data.products)) {
+          if (!isCancelled) {
+            setProducts(data.products);
+            setTotalProducts(data.pagination?.total ?? data.products.length);
+            setTotalPages(data.pagination?.totalPages || 1);
+            setApiError(null);
+          }
+          return;
+        }
+        throw new Error('Invalid products payload');
+      } catch (err: any) {
+        console.warn('Backend catalog API unavailable, switching to local seed database:', err);
+        const fallback = filterLocalProducts({
+          search,
+          category: selectedCategory,
+          brand: selectedBrand,
+          minPrice,
+          maxPrice,
+          minRating,
+          inStockOnly,
+          minDiscount,
+          sortBy,
+          page: currentPage,
+          limit: 12
+        });
+        if (!isCancelled) {
+          setProducts(fallback.products);
+          setTotalProducts(fallback.total);
+          setTotalPages(fallback.totalPages);
+          setApiError('Connected via persistent local catalog engine');
+        }
       } finally {
-        setLoading(false);
+        if (!isCancelled) {
+          setLoading(false);
+        }
       }
     }
+
     loadProducts();
+    return () => {
+      isCancelled = true;
+    };
   }, [
     search,
     selectedCategory,
@@ -111,14 +261,18 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialQuery = '', onNavigat
   };
 
   const hasActiveFilters =
-    search ||
+    Boolean(search) ||
     selectedCategory !== 'all' ||
     selectedBrand !== 'all' ||
-    minPrice ||
-    maxPrice ||
-    minRating ||
+    Boolean(minPrice) ||
+    Boolean(maxPrice) ||
+    Boolean(minRating) ||
     inStockOnly ||
-    minDiscount;
+    Boolean(minDiscount);
+
+  const selectedCategoryObj = SEED_CATEGORIES.find(
+    c => c.slug === selectedCategory || c.name.toLowerCase() === selectedCategory.toLowerCase()
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -129,7 +283,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialQuery = '', onNavigat
             Hardware Catalog
           </h1>
           <p className="text-xs text-neutral-400 mt-1">
-            Displaying {totalProducts} lab-tested instruments across 10 specialized divisions
+            Displaying {totalProducts} {totalProducts === 1 ? 'lab-tested instrument' : 'lab-tested instruments'} across 10 specialized divisions
           </p>
         </div>
 
@@ -224,23 +378,26 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialQuery = '', onNavigat
                 <span>All Departments</span>
                 {selectedCategory === 'all' && <Check className="w-3 h-3" />}
               </button>
-              {SEED_CATEGORIES.map(cat => (
-                <button
-                  key={cat.id}
-                  onClick={() => {
-                    setSelectedCategory(cat.slug);
-                    setCurrentPage(1);
-                  }}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors flex items-center justify-between ${
-                    selectedCategory === cat.slug
-                      ? 'bg-cyan-500/10 text-cyan-400 font-semibold'
-                      : 'text-neutral-400 hover:text-white'
-                  }`}
-                >
-                  <span className="truncate">{cat.name}</span>
-                  {selectedCategory === cat.slug && <Check className="w-3 h-3 shrink-0" />}
-                </button>
-              ))}
+              {SEED_CATEGORIES.map(cat => {
+                const isSelected = selectedCategory === cat.slug || selectedCategory === cat.name;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => {
+                      setSelectedCategory(cat.slug);
+                      setCurrentPage(1);
+                    }}
+                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors flex items-center justify-between ${
+                      isSelected
+                        ? 'bg-cyan-500/10 text-cyan-400 font-semibold'
+                        : 'text-neutral-400 hover:text-white'
+                    }`}
+                  >
+                    <span className="truncate">{cat.name}</span>
+                    {isSelected && <Check className="w-3 h-3 shrink-0" />}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -284,7 +441,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialQuery = '', onNavigat
             </div>
           </div>
 
-          {/* Price Range */}
+          {/* Price Range Inputs */}
           <div>
             <label className="text-xs font-semibold text-neutral-300 block mb-2">
               Price Range ($)
@@ -395,7 +552,9 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialQuery = '', onNavigat
                   onClick={() => setSelectedCategory('all')}
                   className="px-2 py-0.5 rounded-md bg-neutral-800 hover:bg-neutral-700 text-neutral-200 flex items-center gap-1"
                 >
-                  <span>Category: {selectedCategory}</span>
+                  <span>
+                    Department: {selectedCategoryObj?.name || selectedCategory}
+                  </span>
                   <X className="w-3 h-3" />
                 </button>
               )}
@@ -405,6 +564,15 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialQuery = '', onNavigat
                   className="px-2 py-0.5 rounded-md bg-neutral-800 hover:bg-neutral-700 text-neutral-200 flex items-center gap-1"
                 >
                   <span>Brand: {selectedBrand}</span>
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="px-2 py-0.5 rounded-md bg-neutral-800 hover:bg-neutral-700 text-neutral-200 flex items-center gap-1"
+                >
+                  <span>Keyword: "{search}"</span>
                   <X className="w-3 h-3" />
                 </button>
               )}
@@ -435,7 +603,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialQuery = '', onNavigat
             </div>
           )}
 
-          {/* Products Grid */}
+          {/* Skeletons while loading */}
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
@@ -528,7 +696,10 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialQuery = '', onNavigat
                 <label className="text-xs font-semibold text-neutral-300 block mb-2">Department</label>
                 <select
                   value={selectedCategory}
-                  onChange={e => setSelectedCategory(e.target.value)}
+                  onChange={e => {
+                    setSelectedCategory(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   className="w-full p-2 text-xs rounded-xl bg-neutral-900 border border-neutral-800 text-white"
                 >
                   <option value="all">All Departments</option>
@@ -543,7 +714,10 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialQuery = '', onNavigat
                 <label className="text-xs font-semibold text-neutral-300 block mb-2">Brand</label>
                 <select
                   value={selectedBrand}
-                  onChange={e => setSelectedBrand(e.target.value)}
+                  onChange={e => {
+                    setSelectedBrand(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   className="w-full p-2 text-xs rounded-xl bg-neutral-900 border border-neutral-800 text-white"
                 >
                   <option value="all">All Brands</option>

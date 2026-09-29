@@ -20,6 +20,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { Product, ProductVariant, Review, ProductQuestion } from '../types';
+import { SEED_PRODUCTS } from '../data/seedData';
 import { ProductCard } from '../components/ProductCard';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -69,30 +70,51 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   useEffect(() => {
     async function loadProductData() {
       setLoading(true);
+      let loadedProduct: Product | null = null;
+
       try {
         const res = await fetch(`/api/products/${productIdOrSlug}`);
         if (res.ok) {
           const data = await res.json();
-          setProduct(data.product);
-          setRelated(data.related || []);
-          setFrequentlyBought(data.frequentlyBought || []);
-          setSelectedImage(data.product.images[0]);
-          if (data.product.variants && data.product.variants.length > 0) {
-            setSelectedVariant(data.product.variants[0]);
+          if (data && data.product) {
+            loadedProduct = data.product;
+            setProduct(data.product);
+            setRelated(data.related || []);
+            setFrequentlyBought(data.frequentlyBought || []);
+            setSelectedImage(data.product.images[0]);
+            if (data.product.variants && data.product.variants.length > 0) {
+              setSelectedVariant(data.product.variants[0]);
+            }
+
+            // Fetch reviews and questions
+            try {
+              const revRes = await fetch(`/api/products/${data.product.id}/reviews`);
+              if (revRes.ok) setReviews(await revRes.json());
+              const qRes = await fetch(`/api/products/${data.product.id}/questions`);
+              if (qRes.ok) setQuestions(await qRes.json());
+            } catch {
+              // Non-blocking
+            }
           }
-
-          // Fetch reviews and questions
-          const revRes = await fetch(`/api/products/${data.product.id}/reviews`);
-          if (revRes.ok) setReviews(await revRes.json());
-
-          const qRes = await fetch(`/api/products/${data.product.id}/questions`);
-          if (qRes.ok) setQuestions(await qRes.json());
         }
       } catch (err) {
-        console.error('Failed to load product detail:', err);
-      } finally {
-        setLoading(false);
+        console.warn('Failed to load product detail from API, checking local seed database:', err);
       }
+
+      if (!loadedProduct) {
+        const found = SEED_PRODUCTS.find(p => p.id === productIdOrSlug || p.slug === productIdOrSlug);
+        if (found) {
+          setProduct(found);
+          setSelectedImage(found.images[0]);
+          if (found.variants && found.variants.length > 0) {
+            setSelectedVariant(found.variants[0]);
+          }
+          setRelated(SEED_PRODUCTS.filter(p => p.id !== found.id && (p.category === found.category || p.department === found.department)).slice(0, 4));
+          setFrequentlyBought(SEED_PRODUCTS.filter(p => p.id !== found.id && p.brand === found.brand).slice(0, 2));
+        }
+      }
+
+      setLoading(false);
     }
     loadProductData();
   }, [productIdOrSlug]);
